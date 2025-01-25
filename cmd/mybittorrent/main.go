@@ -9,33 +9,67 @@ import (
 	// bencode "github.com/jackpal/bencode-go" // Available if you need it!
 )
 
-// Ensures gofmt doesn't remove the "os" encoding/json import (feel free to remove this!)
-var _ = json.Marshal
+// Example:
+// - i52e --> 52
+// - i-5e --> -5
+func decodeInteger(bencodedString string, index int) (value int, nextIndex int, err error) {
+	isNegative := false
+	// Ignore the "i" char
+	index++
+
+	if rune(bencodedString[0]) == '-' {
+		isNegative = true
+		index++
+	}
+	var eCharIndex int
+	for i := index; i < len(bencodedString); i++ {
+		if rune(bencodedString[i]) == 'e' {
+			eCharIndex = i
+		}
+	}
+	nextIndex = eCharIndex + 1
+	value, err = strconv.Atoi(bencodedString[index:eCharIndex])
+	if err == nil && isNegative {
+		value *= -1
+	}
+	return value, nextIndex, err
+}
 
 // Example:
 // - 5:hello -> hello
 // - 10:hello12345 -> hello12345
+func decodeString(bencodedString string, index int) (value string, nextIndex int, err error) {
+	var firstColonIndex int
+
+	for i := index; i < len(bencodedString); i++ {
+		if bencodedString[i] == ':' {
+			firstColonIndex = i
+			break
+		}
+	}
+
+	lengthStr := bencodedString[index:firstColonIndex]
+
+	length, err := strconv.Atoi(lengthStr)
+	if err != nil {
+		return "", 0, err
+	}
+
+	strStartIndex := firstColonIndex + 1
+	value = bencodedString[strStartIndex : strStartIndex+length]
+	nextIndex = strStartIndex + length
+	return value, nextIndex, err
+}
+
 func decodeBencode(bencodedString string) (interface{}, error) {
 	if unicode.IsDigit(rune(bencodedString[0])) {
-		var firstColonIndex int
-
-		for i := 0; i < len(bencodedString); i++ {
-			if bencodedString[i] == ':' {
-				firstColonIndex = i
-				break
-			}
-		}
-
-		lengthStr := bencodedString[:firstColonIndex]
-
-		length, err := strconv.Atoi(lengthStr)
-		if err != nil {
-			return "", err
-		}
-
-		return bencodedString[firstColonIndex+1 : firstColonIndex+1+length], nil
+		value, _, err := decodeString(bencodedString, 0)
+		return value, err
+	} else if rune(bencodedString[0]) == 'i' {
+		value, _, err := decodeInteger(bencodedString, 0)
+		return value, err
 	} else {
-		return "", fmt.Errorf("Only strings are supported at the moment")
+		return "", fmt.Errorf("only strings are supported at the moment")
 	}
 }
 
