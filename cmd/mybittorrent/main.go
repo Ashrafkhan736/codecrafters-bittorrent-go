@@ -17,7 +17,7 @@ func decodeInteger(bencodedString string, index int) (value int, nextIndex int, 
 	// Ignore the "i" char
 	index++
 
-	if rune(bencodedString[0]) == '-' {
+	if rune(bencodedString[index]) == '-' {
 		isNegative = true
 		index++
 	}
@@ -25,6 +25,7 @@ func decodeInteger(bencodedString string, index int) (value int, nextIndex int, 
 	for i := index; i < len(bencodedString); i++ {
 		if rune(bencodedString[i]) == 'e' {
 			eCharIndex = i
+			break
 		}
 	}
 	nextIndex = eCharIndex + 1
@@ -61,16 +62,59 @@ func decodeString(bencodedString string, index int) (value string, nextIndex int
 	return value, nextIndex, err
 }
 
-func decodeBencode(bencodedString string) (interface{}, error) {
-	if unicode.IsDigit(rune(bencodedString[0])) {
-		value, _, err := decodeString(bencodedString, 0)
-		return value, err
-	} else if rune(bencodedString[0]) == 'i' {
-		value, _, err := decodeInteger(bencodedString, 0)
-		return value, err
-	} else {
-		return "", fmt.Errorf("only strings are supported at the moment")
+// Example:
+// - l5:helloi52ee -> [“hello”,52]
+func decodeList(bencodedString string, index int) (interface{}, int, error) {
+	// take the first index from which we have to read the string
+	// itrate over the str parse the it get the nextIndex
+	// store the value and again
+	list := []interface{}{}
+	index++
+	elementCout := 0
+	eCharIndex := 0
+	// value, index, err := decodeBencode(bencodedString, index)
+	// fmt.Printf("%s %d", value, index)
+	// if err != nil {
+	// 	return list, index, err
+	// }
+	// list = append(list, value)
+	for i := index; i < len(bencodedString); {
+		if bencodedString[i] == 'e' {
+			eCharIndex = i
+			break
+		}
+		value, nextIndex, err := decodeBencode(bencodedString, i)
+		i = nextIndex
+		// fmt.Printf("%v %d\n", value, i)
+		if err != nil {
+			return list, i, err
+		}
+		list = append(list, value)
+		elementCout++
 	}
+	return list[:elementCout], eCharIndex + 1, nil
+}
+
+func decodeBencode(bencodedString string, index int) (interface{}, int, error) {
+	switch true {
+	case unicode.IsDigit(rune(bencodedString[index])):
+		return decodeString(bencodedString, index)
+	case rune(bencodedString[index]) == 'i':
+		return decodeInteger(bencodedString, index)
+	case rune(bencodedString[index]) == 'l':
+		return decodeList(bencodedString, index)
+	default:
+		return "", 0, fmt.Errorf("only strings are supported at the moment")
+	}
+	// if unicode.IsDigit(rune(bencodedString[0])) {
+	// 	value, _, err := decodeString(bencodedString, 0)
+	// 	return value, err
+	// } else if rune(bencodedString[0]) == 'i' {
+	// 	value, _, err := decodeInteger(bencodedString, 0)
+	// 	return value, err
+	// } else {
+	// 	return "", fmt.Errorf("only strings are supported at the moment")
+	// }
 }
 
 func main() {
@@ -84,7 +128,7 @@ func main() {
 		//
 		bencodedValue := os.Args[2]
 
-		decoded, err := decodeBencode(bencodedValue)
+		decoded, _, err := decodeBencode(bencodedValue, 0)
 		if err != nil {
 			fmt.Println(err)
 			return
