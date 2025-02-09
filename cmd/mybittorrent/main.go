@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"unicode"
@@ -72,12 +73,6 @@ func decodeList(bencodedString string, index int) (interface{}, int, error) {
 	index++
 	elementCout := 0
 	eCharIndex := 0
-	// value, index, err := decodeBencode(bencodedString, index)
-	// fmt.Printf("%s %d", value, index)
-	// if err != nil {
-	// 	return list, index, err
-	// }
-	// list = append(list, value)
 	for i := index; i < len(bencodedString); {
 		if bencodedString[i] == 'e' {
 			eCharIndex = i
@@ -85,7 +80,6 @@ func decodeList(bencodedString string, index int) (interface{}, int, error) {
 		}
 		value, nextIndex, err := decodeBencode(bencodedString, i)
 		i = nextIndex
-		// fmt.Printf("%v %d\n", value, i)
 		if err != nil {
 			return list, i, err
 		}
@@ -93,6 +87,34 @@ func decodeList(bencodedString string, index int) (interface{}, int, error) {
 		elementCout++
 	}
 	return list[:elementCout], eCharIndex + 1, nil
+}
+
+func decodeDictionary(bencodedString string, index int) (interface{}, int, error) {
+	index++
+	result := map[string]interface{}{}
+	eCharIndex := 0
+	for i := index; i < len(bencodedString); {
+		if bencodedString[i] == 'e' {
+			eCharIndex = i
+			break
+		}
+		// fmt.Printf("value at the start of loop %d\n", i)
+		key, nextIndex, err := decodeString(bencodedString, i)
+		// fmt.Printf("key %v index %d\n", key, nextIndex)
+		if err != nil {
+			log.Fatalf("error while decoding key %v", err)
+			return result, i, err
+		}
+		value, nextIndex, err := decodeBencode(bencodedString, nextIndex)
+		if err != nil {
+			log.Fatalf("error while decoding value %v", err)
+			return result, i, err
+		}
+		// fmt.Printf("value %v index %d\n", value, nextIndex)
+		result[key] = value
+		i = nextIndex
+	}
+	return result, eCharIndex + 1, nil
 }
 
 func decodeBencode(bencodedString string, index int) (interface{}, int, error) {
@@ -103,6 +125,8 @@ func decodeBencode(bencodedString string, index int) (interface{}, int, error) {
 		return decodeInteger(bencodedString, index)
 	case rune(bencodedString[index]) == 'l':
 		return decodeList(bencodedString, index)
+	case rune(bencodedString[index]) == 'd':
+		return decodeDictionary(bencodedString, index)
 	default:
 		return "", 0, fmt.Errorf("only strings are supported at the moment")
 	}
