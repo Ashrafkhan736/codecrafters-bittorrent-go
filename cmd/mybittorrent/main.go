@@ -117,7 +117,7 @@ func decodeDictionary(bencodedString string, index int) (interface{}, int, error
 	return result, eCharIndex + 1, nil
 }
 
-func decodeBencode(bencodedString string, index int) (interface{}, int, error) {
+func decodeBencode(bencodedString string, index int) (any, int, error) {
 	switch true {
 	case unicode.IsDigit(rune(bencodedString[index])):
 		return decodeString(bencodedString, index)
@@ -130,15 +130,24 @@ func decodeBencode(bencodedString string, index int) (interface{}, int, error) {
 	default:
 		return "", 0, fmt.Errorf("only strings are supported at the moment")
 	}
-	// if unicode.IsDigit(rune(bencodedString[0])) {
-	// 	value, _, err := decodeString(bencodedString, 0)
-	// 	return value, err
-	// } else if rune(bencodedString[0]) == 'i' {
-	// 	value, _, err := decodeInteger(bencodedString, 0)
-	// 	return value, err
-	// } else {
-	// 	return "", fmt.Errorf("only strings are supported at the moment")
-	// }
+}
+
+func decodeMetaInfoFile(filename string) map[string]any {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		log.Fatalf("Error occured while reading file %s %v", filename, err)
+	}
+	decodedDict, _, err := decodeDictionary(string(data), 0)
+	if err != nil {
+		log.Fatalf("Error occured while decoding the string %v", err)
+	}
+	result, ok := decodedDict.(map[string]any)
+	if !ok {
+		log.Fatalln("Failed to convert infterface to dict")
+	}
+	// fmt.Println(result)
+
+	return result
 }
 
 func main() {
@@ -147,11 +156,9 @@ func main() {
 
 	command := os.Args[1]
 
-	if command == "decode" {
-		// Uncomment this block to pass the first stage
-		//
+	switch command {
+	case "decode":
 		bencodedValue := os.Args[2]
-
 		decoded, _, err := decodeBencode(bencodedValue, 0)
 		if err != nil {
 			fmt.Println(err)
@@ -160,7 +167,34 @@ func main() {
 
 		jsonOutput, _ := json.Marshal(decoded)
 		fmt.Println(string(jsonOutput))
-	} else {
+
+	case "info":
+		filename := os.Args[2]
+		metaInfo := decodeMetaInfoFile(filename)
+		tracker, ok := metaInfo["announce"]
+		if !ok {
+			fmt.Println("key not found tracker")
+		}
+		fmt.Printf("Tracker URL: %s\n", tracker.(string))
+		infoDict := metaInfo["info"]
+		for key, value := range infoDict.(map[string]any) {
+			switch decodedValue := value.(type) {
+			case byte:
+				// fmt.Printf("key : %v , value : %v\n", key, string(decodedValue))
+				// fmt.Printf("key : %v , value : %v\n", key, decodedValue)
+			case int:
+				if key == "length" {
+					fmt.Printf("Length: %d", decodedValue)
+				}
+				// fmt.Printf("key : %v , value : %v\n", key, decodedValue)
+			case string:
+				// fmt.Printf("key : %v , value : %v\n", key, decodedValue)
+			default:
+				// fmt.Printf("type not defined for key: %s\n", key)
+			}
+		}
+
+	default:
 		fmt.Println("Unknown command: " + command)
 		os.Exit(1)
 	}
