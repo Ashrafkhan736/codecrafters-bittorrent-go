@@ -135,6 +135,31 @@ func decodeBencode(bencodedString string, index int) (any, int, error) {
 	}
 }
 
+func decodeInt(data any) int {
+	decodedValue, ok := data.(int)
+	if !ok {
+		log.Fatalln("Failed to convert to int")
+	}
+	return decodedValue
+}
+
+func findMapKey(dict map[string]any, key string) any {
+	result, ok := dict[key]
+	if !ok {
+		fmt.Println("key not found tracker")
+	}
+	return result
+}
+
+func decodeByteArray(data any) []byte {
+	tempString, ok := data.(string)
+	if !ok {
+		log.Fatalln("Failed to convert to string")
+	}
+	decodedValue := []byte(tempString)
+	return decodedValue
+}
+
 func decodeMetaInfoFile(filename string) map[string]any {
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -181,26 +206,39 @@ func main() {
 		fmt.Printf("Tracker URL: %s\n", url.(string))
 		infoInterface := metaInfo["info"]
 		infoDict := infoInterface.(map[string]any)
-		for key, value := range infoDict {
-			switch decodedValue := value.(type) {
-			case []byte:
-				fmt.Printf("key : %v value : %v\n", key, decodedValue)
-			case byte:
-				// fmt.Printf("key : %v , value : %v\n", key, string(decodedValue))
-				// fmt.Printf("key : %v , value : %v\n", key, decodedValue)
-			case int:
-				if key == "length" {
-					fmt.Printf("Length: %d\n", decodedValue)
-				}
-				// fmt.Printf("key : %v , value : %v\n", key, decodedValue)
-			case string:
-				// fmt.Printf("key : %v , value : %v\n", key, decodedValue)
-			default:
-				// fmt.Printf("type not defined for key: %s\n", key)
-			}
-		}
+
+		length := decodeInt(findMapKey(infoDict, "length"))
+		fmt.Printf("Length: %d\n", length)
+
 		hash := calculateInfoHash(encodeBencode(infoDict))
-		fmt.Printf("Info Hash: %s", hash)
+		fmt.Printf("Info Hash: %s\n", hash)
+
+		pieceLength := decodeInt(findMapKey(infoDict, "piece length"))
+		fmt.Printf("Piece Length: %d\n", pieceLength)
+
+		pieces := decodeByteArray(findMapKey(infoDict, "pieces"))
+		fmt.Printf("Pieces Hash:\n")
+		for i := 0; i < len(pieces); i += 20 {
+			fmt.Printf("%x\n", pieces[i:i+20])
+		}
+		// for key, value := range infoDict {
+		// 	switch decodedValue := value.(type) {
+		// 	case []byte:
+		// 		fmt.Printf("key : %v value : %v\n", key, decodedValue)
+		// 	case byte:
+		// 		// fmt.Printf("key : %v , value : %v\n", key, string(decodedValue))
+		// 		// fmt.Printf("key : %v , value : %v\n", key, decodedValue)
+		// 	case int:
+		// 		if key == "length" {
+		// 			fmt.Printf("Length: %d\n", decodedValue)
+		// 		}
+		// 		// fmt.Printf("key : %v , value : %v\n", key, decodedValue)
+		// 	case string:
+		// 		// fmt.Printf("key : %v , value : %v\n", key, decodedValue)
+		// 	default:
+		// 		// fmt.Printf("type not defined for key: %s\n", key)
+		// 	}
+		// }
 
 	default:
 		fmt.Println("Unknown command: " + command)
