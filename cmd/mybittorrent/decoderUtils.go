@@ -8,6 +8,14 @@ import (
 	"unicode"
 )
 
+type Handshake struct {
+	PstrLen  int
+	Pstr     string
+	Reserved []byte
+	InfoHash []byte
+	PeerID   string
+}
+
 // Example:
 // - i52e --> 52
 // - i-5e --> -5
@@ -171,4 +179,15 @@ func decodeMetaInfoFile(filename string) map[string]any {
 	// fmt.Println(result)
 
 	return result
+}
+
+func parseHandshakeResponse(data []byte) Handshake {
+	handshake := Handshake{}
+	handshake.PstrLen = int(data[0])
+	fmt.Println(handshake.PstrLen)
+	handshake.Pstr = string(data[1 : handshake.PstrLen+1])
+	handshake.Reserved = data[handshake.PstrLen+1 : handshake.PstrLen+9]
+	handshake.InfoHash = data[handshake.PstrLen+9 : handshake.PstrLen+29]
+	handshake.PeerID = string(data[handshake.PstrLen+29 : handshake.PstrLen+49])
+	return handshake
 }

@@ -22,6 +22,8 @@ func main() {
 		getTorrentInfo()
 	case "peers":
 		discoverPeers()
+	case "handshake":
+		makeHandshake()
 	default:
 		fmt.Println("Unknown command: " + command)
 		os.Exit(1)

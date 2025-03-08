@@ -7,10 +7,13 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
 )
+
+var PEER_ID = "12345678901234567890"
 
 func printBencode() {
 	bencodedValue := os.Args[2]
@@ -110,11 +113,6 @@ func discoverPeers() {
 	if err != nil {
 		log.Fatalf("Could not parse bencodedValue %s", err)
 	}
-	// trackerResponse := TrackerResponse{}
-	// decoder := json.NewDecoder(resp.Body)
-	// if err := decoder.Decode(&trackerResponse); err != nil {
-	// 	log.Fatalf("Error decoding tracker response %s", err)
-	// }
 	peers := findMapKey(trackerResponse.(map[string]any), "peers").(string)
 	peersBytes := []byte(peers)
 	for i := 0; i < len(peersBytes); i += 6 {
@@ -129,4 +127,34 @@ func discoverPeers() {
 
 		fmt.Printf("%s:%d\n", ipAddress, binary.BigEndian.Uint16(peer[4:]))
 	}
+}
+
+func makeHandshake() {
+	filename := os.Args[2]
+	ipAddress := os.Args[3]
+	torrentInfo := decodeMetaInfoFile(filename)
+	infoDict := findMapKey(torrentInfo, "info").(map[string]any)
+	infoHash := calculateInfoHash(encodeBencode(infoDict))
+	handshakeMsg := make([]byte, 68)
+	handshakeMsg[0] = 19
+	handshakeMsg = append(handshakeMsg, []byte("BitTorrent protocol")...)
+	handshakeMsg = append(handshakeMsg, make([]byte, 8)...)
+	handshakeMsg = append(handshakeMsg, infoHash...)
+	handshakeMsg = append(handshakeMsg, []byte(PEER_ID)...)
+	conn, err := net.Dial("tcp", ipAddress)
+	if err != nil {
+		log.Fatalf("Could not connect to peer %s", err)
+	}
+	defer conn.Close()
+	_, err = conn.Write(handshakeMsg)
+	if err != nil {
+		log.Fatalf("Could not write to peer %s", err)
+	}
+	msgFromPeer := make([]byte, 68)
+	_, err = conn.Read(msgFromPeer)
+	if err != nil {
+		log.Fatalf("Could not read from peer %s", err)
+	}
+	// handshakeResponse := parseHandshakeResponse(msgFromPeer[:n])
+	fmt.Printf("Peer ID: %x\n", msgFromPeer[48:])
 }
