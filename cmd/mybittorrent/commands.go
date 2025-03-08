@@ -136,7 +136,7 @@ func makeHandshake() {
 	infoDict := findMapKey(torrentInfo, "info").(map[string]any)
 	infoHash := calculateInfoHash(encodeBencode(infoDict))
 	handshakeMsg := make([]byte, 68)
-	handshakeMsg[0] = 19
+	handshakeMsg = append(handshakeMsg, byte(19))
 	handshakeMsg = append(handshakeMsg, []byte("BitTorrent protocol")...)
 	handshakeMsg = append(handshakeMsg, make([]byte, 8)...)
 	handshakeMsg = append(handshakeMsg, infoHash...)
